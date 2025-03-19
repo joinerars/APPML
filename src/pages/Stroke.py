@@ -1,7 +1,44 @@
 import streamlit as st
 import pandas as pd
+import google.generativeai as genai
+
+# Configurar la API Key desde una variable de entorno
+api_key = "AIzaSyC-CnTocy4rY5wqj944xyNGFK8MbzBFE_4"
+
+
+# Configuración de la clave API de Generative AI de Google para realizar solicitudes
+api_key = "AIzaSyC-CnTocy4rY5wqj944xyNGFK8MbzBFE_4"
+
+# Verifica si la clave API está configurada correctamente; muestra un error en caso contrario
+if not api_key:
+    st.error("No se encontró la clave API. Asegúrate de configurarla correctamente.")
+else:
+    genai.configure(api_key=api_key)
+
+def obtener_recomendaciones(datos_paciente):
+    """
+    Genera recomendaciones de salud basadas en los datos proporcionados por el paciente.
+
+    Args:
+        datos_paciente (str): Información del paciente, como edad, género y síntomas.
+
+    Returns:
+        str: Texto con recomendaciones generadas por el modelo o un mensaje de error.
+    """
+    try:
+        # Selecciona el modelo de IA de Google para generar contenido basado en los datos proporcionados
+        model = genai.GenerativeModel("gemini-1.5-flash")  
+        response = model.generate_content(f"Basado en estos datos del paciente: {datos_paciente}, "
+                                          "proporciona recomendaciones para mejorar su salud.")
+        return response.text if response else "No se pudo generar una respuesta."
+    except Exception as e:
+        # Devuelve un mensaje de error en caso de que falle la API
+        return f"Error en la API: {str(e)}"
+    
 
 def main():
+
+    # Estilo personalizado para cambiar colores, tipografías y elementos de la interfaz
     st.markdown(
     """
     <style>
@@ -106,15 +143,92 @@ def main():
     symptoms_selected = {}
     for key, (label, description) in symptoms.items():
         symptoms_selected[key] = st.checkbox(label, help=description)
-    
-    # Botón para obtener los datos ingresados
-    if st.button("Predecir Riesgo"): 
+        
+    # Centrar el botón con CSS en Streamlit
+    st.markdown(
+        """
+        <style>
+            .stButton > button {
+                display: block;
+                margin: 0 auto;
+                background-color: #A2E4B8 !important; /* Color verde */
+                color: white !important; /* Texto en blanco */
+                font-size: 16px !important;
+                border-radius: 5px !important;
+                padding: 10px 20px !important;
+                border: none !important;
+                cursor: pointer !important;
+            }
+            .stButton > button:hover {
+                background-color: #64AC8F !important; /* Verde oscuro al pasar el cursor */
+            }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Botón centrado
+    if st.button("Predecir Riesgo"):
         patient_data = {
             "age": age,
             "gender": gender,
             **symptoms_selected
         }
-        st.write("Datos del paciente para modelo predictivo:", patient_data)
+        
+        # Título centrado en negro
+        st.markdown(
+            """
+            <h1 style='text-align: center; color: black;'>🩺 Recomendaciones de Salud por Gemini AI</h1>
+            """,
+            unsafe_allow_html=True
+        )
+
+        symptoms_list = [label for label, selected in symptoms_selected.items() if selected]
+        symptoms_text = ", ".join(symptoms_list) if symptoms_list else "Sin síntomas reportados"
+
+        datos_paciente = f"Edad: {age} años\nGénero: {gender}\nSíntomas reportados: {symptoms_text}"
+
+        recomendaciones = obtener_recomendaciones(datos_paciente)
+        
+        #  Limpieza y formato del texto generado por la IA
+        recomendaciones = recomendaciones.replace("**", "")  # Elimina negritas en Markdown
+        recomendaciones = recomendaciones.replace("\n\n", "\n")  # Elimina dobles saltos de línea
+
+        #  Separar en líneas y limpiar
+        recomendaciones_lista = recomendaciones.split("\n")
+        recomendaciones_lista = [item.strip() for item in recomendaciones_lista if item.strip()]  # Elimina líneas vacías
+
+        #  Convertir listas correctamente
+        recomendaciones_formateadas = []
+        for item in recomendaciones_lista:
+            if item.startswith("* "):  
+                item = item.replace("* ", "", 1)  # Elimina solo el primer *
+                recomendaciones_formateadas.append(f"<li>{item}</li>")
+            else:
+                recomendaciones_formateadas.append(f"<p>{item}</p>")  # Mantiene los párrafos sin viñetas
+
+        # Unir todo asegurando que las listas sean válidas en HTML
+        recomendaciones_html = "".join(recomendaciones_formateadas)
+
+        # Aplicar formato con HTML y CSS
+        st.subheader("🔎 Recomendaciones:")
+        st.markdown(
+            f"""
+            <div style='background-color: #f9f9f9; padding: 20px; border-radius: 8px; border-left: 5px solid #4CAF50;'>
+                <p style='color: black; font-size: 18px; font-weight: bold;'>Recomendaciones Generales:</p>
+                <ul style="color: black; font-size: 16px; line-height: 1.6;">
+                    {recomendaciones_html}
+                </ul>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+
+
         
 if __name__ == "__main__":
     main()
+
+
+
